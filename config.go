@@ -22,7 +22,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-func ValidateConfig(config *config) error {
+func ValidateConfig(config *Config) error {
 	if config.StorageDir == "" {
 		return fmt.Errorf("A StorageDir must be specified")
 	}
