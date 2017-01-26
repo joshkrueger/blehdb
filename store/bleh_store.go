@@ -25,6 +25,18 @@ func New() *BlehStore {
 	}
 }
 
+func (b *BlehStore) ListBuckets() []string {
+	b.bucketLock.RLock()
+	defer b.bucketLock.RUnlock()
+
+	var keys []string
+	for k, _ := range b.buckets {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
 func (b *BlehStore) BucketExists(name string) bool {
 	b.bucketLock.RLock()
 	defer b.bucketLock.RUnlock()

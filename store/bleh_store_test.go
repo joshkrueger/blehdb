@@ -19,6 +19,34 @@ func TestCreateBucket(t *testing.T) {
 	}
 }
 
+func stringSliceContains(s []string, obj string) bool {
+	for _, v := range s {
+		if v == obj {
+			return true
+		}
+	}
+	return false
+}
+
+func TestListBuckets(t *testing.T) {
+	s := New()
+	s.CreateBucket("foo")
+	s.CreateBucket("bar")
+	s.CreateBucket("baz")
+
+	buckets := s.ListBuckets()
+	expectedBuckets := []string{"foo", "bar", "baz"}
+	if len(buckets) != len(expectedBuckets) {
+		t.Error("The number of buckets does not match the expected value")
+	}
+
+	for _, v := range expectedBuckets {
+		if !stringSliceContains(buckets, v) {
+			t.Errorf("bucket '%v' is missing. got: %v", v, buckets)
+		}
+	}
+}
+
 func TestDuplicateBucketError(t *testing.T) {
 	s := New()
 	var err error
