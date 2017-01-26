@@ -72,6 +72,10 @@ func (b *blehFSM) Apply(log *raft.Log) interface{} {
 	}
 }
 
+func (b *blehFSM) Store() *store.BlehStore {
+	return b.store
+}
+
 func (b *blehFSM) applySetItem(buf []byte, index uint64) interface{} {
 	var c command
 	err := decodeMessage(buf, &c)
