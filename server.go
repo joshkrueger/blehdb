@@ -88,6 +88,10 @@ func (s *Server) setupRaft() error {
 }
 
 func (s *Server) Set(bucket, key, value string) error {
+	if s.raft.State() != raft.Leader {
+		return fmt.Errorf("this member is not the leader, cannot mutate values")
+	}
+
 	c := &command{
 		Bucket: bucket,
 		Key:    key,
@@ -130,6 +134,10 @@ func (s *Server) Delete(bucket, key string) error {
 }
 
 func (s *Server) CreateBucket(name string) error {
+	if s.raft.State() != raft.Leader {
+		return fmt.Errorf("this member is not the leader, cannot mutate values")
+	}
+
 	c := &command{
 		Bucket: name,
 	}
@@ -143,6 +151,10 @@ func (s *Server) CreateBucket(name string) error {
 }
 
 func (s *Server) DeleteBucket(name string) error {
+	if s.raft.State() != raft.Leader {
+		return fmt.Errorf("this member is not the leader, cannot mutate values")
+	}
+
 	c := &command{
 		Bucket: name,
 	}
