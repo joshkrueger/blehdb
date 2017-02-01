@@ -1,17 +1,19 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"sync"
 )
 
 type BlehStore struct {
-	buckets    map[string]*bucket
+	Buckets    map[string]*bucket
 	bucketLock sync.RWMutex
 }
 
 type bucket struct {
-	items    map[string]*item
+	Items    map[string]*item
 	itemLock sync.RWMutex
 }
 
@@ -21,8 +23,23 @@ type item struct {
 
 func New() *BlehStore {
 	return &BlehStore{
-		buckets: make(map[string]*bucket),
+		Buckets: make(map[string]*bucket),
 	}
+}
+
+func (b *BlehStore) Backup() ([]byte, error) {
+	b.bucketLock.Lock()
+	defer b.bucketLock.Unlock()
+
+	buf, err := json.Marshal(b)
+	return buf, err
+}
+
+func Restore(rc io.ReadCloser) (*BlehStore, error) {
+	bs := New()
+
+	err := json.NewDecoder(rc).Decode(&bs)
+	return bs, err
 }
 
 func (b *BlehStore) ListBuckets() []string {
@@ -30,7 +47,7 @@ func (b *BlehStore) ListBuckets() []string {
 	defer b.bucketLock.RUnlock()
 
 	var keys []string
-	for k, _ := range b.buckets {
+	for k, _ := range b.Buckets {
 		keys = append(keys, k)
 	}
 
@@ -40,7 +57,7 @@ func (b *BlehStore) ListBuckets() []string {
 func (b *BlehStore) BucketExists(name string) bool {
 	b.bucketLock.RLock()
 	defer b.bucketLock.RUnlock()
-	_, ok := b.buckets[name]
+	_, ok := b.Buckets[name]
 
 	return ok
 }
@@ -49,11 +66,11 @@ func (b *BlehStore) CreateBucket(name string) error {
 	b.bucketLock.Lock()
 	defer b.bucketLock.Unlock()
 
-	if _, ok := b.buckets[name]; ok {
+	if _, ok := b.Buckets[name]; ok {
 		return fmt.Errorf("Bucket '%s' already exists", name)
 	}
 
-	b.buckets[name] = newBucket()
+	b.Buckets[name] = newBucket()
 
 	return nil
 }
@@ -61,8 +78,8 @@ func (b *BlehStore) CreateBucket(name string) error {
 func (b *BlehStore) DeleteBucket(name string) error {
 	b.bucketLock.Lock()
 	defer b.bucketLock.Unlock()
-	delete(b.buckets, name)
-	if _, ok := b.buckets[name]; ok {
+	delete(b.Buckets, name)
+	if _, ok := b.Buckets[name]; ok {
 		return fmt.Errorf("Bucket '%s' did not delete", name)
 	}
 
@@ -73,7 +90,7 @@ func (b *BlehStore) SetItem(bucket, key, value string) error {
 	b.bucketLock.RLock()
 	defer b.bucketLock.RUnlock()
 
-	bb, ok := b.buckets[bucket]
+	bb, ok := b.Buckets[bucket]
 	if !ok {
 		return fmt.Errorf("bucket '%s' does not exist", bucket)
 	}
@@ -86,7 +103,7 @@ func (b *BlehStore) GetItem(bucket, key string) (string, error) {
 	b.bucketLock.RLock()
 	defer b.bucketLock.RUnlock()
 
-	bb, ok := b.buckets[bucket]
+	bb, ok := b.Buckets[bucket]
 	if !ok {
 		return "", fmt.Errorf("bucket '%s' does not exist", bucket)
 	}
@@ -96,7 +113,7 @@ func (b *BlehStore) GetItem(bucket, key string) (string, error) {
 
 func newBucket() *bucket {
 	return &bucket{
-		items: make(map[string]*item),
+		Items: make(map[string]*item),
 	}
 }
 
@@ -104,7 +121,7 @@ func (b *BlehStore) DeleteItem(bucket, key string) error {
 	b.bucketLock.RLock()
 	defer b.bucketLock.RUnlock()
 
-	bb, ok := b.buckets[bucket]
+	bb, ok := b.Buckets[bucket]
 	if !ok {
 		return fmt.Errorf("bucket '%s' does not exist", bucket)
 	}
@@ -116,7 +133,7 @@ func (b *bucket) Set(key, value string) error {
 	b.itemLock.Lock()
 	defer b.itemLock.Unlock()
 
-	b.items[key] = &item{
+	b.Items[key] = &item{
 		Value: value,
 	}
 
@@ -127,7 +144,7 @@ func (b *bucket) Get(key string) (string, error) {
 	b.itemLock.RLock()
 	defer b.itemLock.RUnlock()
 
-	i, ok := b.items[key]
+	i, ok := b.Items[key]
 	if !ok {
 		return "", fmt.Errorf("Key '%v' not found", key)
 	}
@@ -139,7 +156,7 @@ func (b *bucket) Delete(key string) error {
 	b.itemLock.Lock()
 	defer b.itemLock.Unlock()
 
-	delete(b.items, key)
+	delete(b.Items, key)
 
 	return nil
 }

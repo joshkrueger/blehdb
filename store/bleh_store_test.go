@@ -1,6 +1,10 @@
 package store
 
-import "testing"
+import (
+	"bytes"
+	"io/ioutil"
+	"testing"
+)
 
 func TestNewStore(t *testing.T) {
 
@@ -125,5 +129,33 @@ func TestItem(t *testing.T) {
 	_, err = s.GetItem("foo", "bar")
 	if err == nil {
 		t.Error("item should not exist anymore")
+	}
+}
+
+func TestBackup(t *testing.T) {
+	s := New()
+	s.CreateBucket("foo")
+	s.SetItem("foo", "bar", "baz")
+	s.SetItem("foo", "foo", "bar")
+
+	b, err := s.Backup()
+	if err != nil {
+		t.Error("backup should not have returned an error")
+	}
+
+	buff := bytes.NewBuffer(b)
+
+	ss, err := Restore(ioutil.NopCloser(buff))
+	if err != nil {
+		t.Error("unexpected error in restore")
+	}
+
+	v, err := ss.GetItem("foo", "bar")
+	if err != nil {
+		t.Error("GetItem should not have returned an error")
+	}
+
+	if v != "baz" {
+		t.Error("Expected value of restored DB does not match actual")
 	}
 }

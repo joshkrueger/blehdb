@@ -133,18 +133,46 @@ func (b *blehFSM) applyDeleteBucket(buf []byte, index uint64) interface{} {
 }
 
 func (b *blehFSM) Snapshot() (raft.FSMSnapshot, error) {
-	return &fsmSnapshot{}, nil
+	b.logger.Println("Calling Snapshot")
+	buf, err := b.store.Backup()
+	return &fsmSnapshot{
+		snap: buf,
+	}, err
 }
 
 func (b *blehFSM) Restore(old io.ReadCloser) error {
-	// not implemented yet
+	new, err := store.Restore(old)
+	if err != nil {
+		return err
+	}
+	b.store = new
 	return nil
 }
 
-type fsmSnapshot struct{}
+type fsmSnapshot struct {
+	snap []byte
+}
 
 func (s *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
-	// not implemented yet
+	err := func() error {
+
+		if _, err := sink.Write(s.snap); err != nil {
+			return err
+		}
+
+		if err := sink.Close(); err != nil {
+			return err
+		}
+
+		return nil
+	}()
+
+	if err != nil {
+		sink.Cancel()
+		return err
+	}
+
 	return nil
 }
+
 func (s *fsmSnapshot) Release() {}
