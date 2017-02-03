@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"path/filepath"
 	"time"
@@ -19,6 +20,11 @@ type Server struct {
 	raft      *raft.Raft
 	raftStore *raftboltdb.BoltStore
 	peerStore *raft.JSONPeers
+
+	rpcListener net.Listener
+	rpcServer   *rpc.Server
+
+	manager *Management
 }
 
 func NewServer(config *Config) (*Server, error) {
@@ -27,8 +33,9 @@ func NewServer(config *Config) (*Server, error) {
 	}
 
 	s := &Server{
-		config: config,
-		logger: log.New(os.Stdout, "[BLEHDB] ", log.LstdFlags),
+		config:    config,
+		logger:    log.New(os.Stdout, "[BLEHDB] ", log.LstdFlags),
+		rpcServer: rpc.NewServer(),
 	}
 
 	if err := s.setupRaft(); err != nil {
@@ -36,7 +43,54 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
+	if err := s.setupRPC(); err != nil {
+		return nil, fmt.Errorf("Failed to start RPC: %v", err)
+	}
+
 	return s, nil
+}
+
+func (s *Server) setupRPC() error {
+	s.manager = &Management{s}
+	s.rpcServer.Register(s.manager)
+
+	l, err := net.Listen("tcp", s.config.RPCBind)
+	if err != nil {
+		return err
+	}
+
+	s.rpcListener = l
+	go s.listen()
+
+	return nil
+}
+
+func (s *Server) listen() {
+	s.rpcServer.Accept(s.rpcListener)
+	s.logger.Println("RPC.Accept has returned. This might be an error.")
+}
+
+func (s *Server) Join(addr string) error {
+	client, err := rpc.Dial("tcp", addr)
+
+	if err != nil {
+		return err
+	}
+
+	args := &JoinRequest{
+		Address: s.config.RaftBind,
+	}
+
+	var resp string
+
+	err = client.Call("Management.Join", args, &resp)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Printf("Raft join returned: %v", resp)
+
+	return nil
 }
 
 func (s *Server) setupRaft() error {
