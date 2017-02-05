@@ -79,9 +79,6 @@ func (b *BlehStore) DeleteBucket(name string) error {
 	b.bucketLock.Lock()
 	defer b.bucketLock.Unlock()
 	delete(b.Buckets, name)
-	if _, ok := b.Buckets[name]; ok {
-		return fmt.Errorf("Bucket '%s' did not delete", name)
-	}
 
 	return nil
 }
