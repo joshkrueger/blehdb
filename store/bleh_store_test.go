@@ -19,7 +19,12 @@ func TestCreateBucket(t *testing.T) {
 	var err error
 	err = s.CreateBucket("foo")
 	if err != nil {
-		t.Error("CreateBucket should not have returned nil")
+		t.Errorf("CreateBucket returned error: %v", err)
+	}
+
+	err = s.CreateBucket("foo")
+	if err == nil {
+		t.Errorf("CreateBucket should return error when creating a bucket that already exists")
 	}
 }
 
@@ -129,6 +134,16 @@ func TestItem(t *testing.T) {
 	_, err = s.GetItem("foo", "bar")
 	if err == nil {
 		t.Error("item should not exist anymore")
+	}
+
+	_, err = s.GetItem("dne", "foo")
+	if err == nil {
+		t.Error("GetItem on non-existent bucket should return an error")
+	}
+
+	err = s.DeleteItem("dne", "foo")
+	if err == nil {
+		t.Error("DeleteItem on non-existent bucket should return an error")
 	}
 }
 
